@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+	<meta charset="utf-8">
+	<meta http-equiv="X-UA-Compatible" content="IE=edge">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<!-- The above 3 meta tags *must* come first in the head; any other head content must come *after* these tags -->
+	<meta name="description" content="A Remote Desktop Protocol Client Demo written in javascript">
+	<meta name="author" content="Liuqi">
+
+	<link rel="icon" href="./img/logo.ico">
+
+	<title>远程桌面连接</title>
+
+	<!-- Bootstrap core CSS -->
+	<link href="./css/bootstrap.min.css" rel="stylesheet">
+	<!-- Custom styles for this template -->
+	<link href="./css/signin.css" rel="stylesheet">
+
+	<script type="text/javascript" src="./socket.io/socket.io.js"></script>
+	<script type="text/javascript" src="./js/mstsc.js"></script>
+	<script type="text/javascript" src="./js/keyboard.js"></script>
+	<script type="text/javascript" src="./js/rle.js"></script>
+	<script type="text/javascript" src="./js/client.js"></script>
+	<script type="text/javascript" src="./js/canvas.js"></script>
+
+	<script language="javascript">
+		var client = null;
+		var timeout = null;
+
+		/** 加载客户端 */
+		function load(canvas) {
+			Mstsc.$("inputEnablePerf").checked = true;
+			client = Mstsc.client.create(Mstsc.$(canvas));
+			if (sessionStorage.getItem("connect"))
+				resetConnect();
+			else
+				loadForm();
+		}
+
+		/** 连接远程桌面 */
+		function connect(ip, domain, username, password, enablePerf, checked) {
+			// 记住凭据
+			if (checked) saveForm({ ip, domain, username, password, enablePerf }, "login");
+			else localStorage.removeItem("login");
+
+			// 页面加载
+			Mstsc.$("loading").style.display = 'block';
+
+			const canvas = Mstsc.$("myCanvas");
+			canvas.width = window.innerWidth;
+			canvas.height = window.innerHeight;
+
+			let disabled = false;
+
+			client.connect(ip, domain, username, password, enablePerf,
+				/** 连接成功的回调 */
+				function () {
+					Mstsc.$("main").style.display = 'none';
+					Mstsc.$("loading").style.display = 'none';
+					canvas.style.display = 'block';
+					showMessage("连接成功！", "success");
+					// 将连接的信息存储到 sessionStorage
+					saveForm({ ip, domain, username, password, enablePerf }, "connect");
+				},
+				/** 连接失败的回调 */
+				function (err) {
+					if (disabled) return;
+					disabled = true;
+					setTimeout(() => {
+						disabled = false;
+					}, 1000);
+					Mstsc.$("main").style.display = 'block';
+					Mstsc.$("loading").style.display = 'none';
+					canvas.style.display = 'none';
+					if (err) {
+						let message;
+						switch (err.code) {
+							case "ECONNRESET":
+								message = "网络重置，";
+								break;
+							case "ETIMEDOUT":
+								message = "连接超时，";
+								break;
+							default:
+								message = "未知错误，";
+						}
+						message += "请检查后再试！";
+						showMessage(message, "error");
+					}
+					loadForm();
+				}
+			);
+		}
+
+		/** 重新连接 */
+		function resetConnect() {
+			const data = sessionStorage.getItem("connect");
+			try {
+				if (data) {
+					const form = JSON.parse(data);
+					if (form.ip)
+						connect(form.ip, form.domain || "", form.username || "", (form.password && atob(form.password)) || "", form.enablePerf, true);
+					else throw new Error();
+				} else throw new Error();
+			} catch (e) {
+				loadForm();
+			}
+		}
+
+		/** 加载凭据 */
+		function loadForm() {
+			sessionStorage.removeItem("connect");
+			const data = localStorage.getItem("login");
+			try {
+				if (data) {
+					const form = JSON.parse(data);
+					Mstsc.$("inputIpAddress").value = form.ip || "";
+					Mstsc.$("inputDomain").value = form.domain || "";
+					Mstsc.$("inputUsername").value = form.username || "";
+					Mstsc.$("inputPassword").value = (form.password && atob(form.password)) || "";
+					Mstsc.$("inputEnablePerf").checked = form.enablePerf === false ? false : true;
+					Mstsc.$("inputChecked").checked = true;
+				}
+			} catch (e) { }
+		}
+
+		/** 保存凭据 */
+		function saveForm(form, type) {
+			// 加密密码（base64）
+			form.password = (form.password && btoa(form.password)) || '';
+			if (type === "login")
+				localStorage.setItem(type, JSON.stringify(form));
+			else
+				sessionStorage.setItem(type, JSON.stringify(form));
+		}
+
+		/** 显示提示信息 */
+		function showMessage(message, type) {
+			if (timeout) clearTimeout(timeout);
+			const dom = Mstsc.$("message");
+			dom.className = type;
+			dom.querySelector(".text").innerText = message;
+			dom.style.top = "16px";
+
+			// 定时移除消息元素
+			timeout = setTimeout(() => {
+				hideMassage();
+			}, 3000);
+		}
+
+		/** 隐藏提示信息 */
+		function hideMassage() {
+			if (timeout) clearTimeout(timeout);
+			const dom = Mstsc.$("message");
+			dom.style.top = "-50PX";
+		}
+	</script>
+</head>
+
+<body onload='load("myCanvas")'>
+	<!-- 登录页 -->
+	<div id="main" class="container">
+		<form class="form-signin"
+			onSubmit="connect(this.elements['inputIpAddress'].value, this.elements['inputDomain'].value, this.elements['inputUsername'].value, this.elements['inputPassword'].value, this.elements['inputEnablePerf'].checked, this.elements['inputChecked'].checked);return false;">
+			<img class='logo' src="./img/mstsc.js.svg"></img>
+			<label for="inputIpAddress" class="sr-only">计算机</label>
+			<input type="text" id="inputIpAddress" class="form-control" placeholder="计算机" required autofocus>
+			<label for="inputDomain" class="sr-only">域</label>
+			<input type="text" id="inputDomain" class="form-control" placeholder="域">
+			<label for="inputUsername" class="sr-only">用户名</label>
+			<input type="text" id="inputUsername" class="form-control" placeholder="用户名">
+			<label for="inputPassword" class="sr-only">密码</label>
+			<input type="password" id="inputPassword" class="form-control" placeholder="密码">
+			<input type="checkbox" id="inputEnablePerf">
+			<label for="inputEnablePerf">高性能模式（推荐）</label>
+			<br />
+			<input type="checkbox" id="inputChecked">
+			<label for="inputChecked">记住我的凭据</label>
+
+			<button class="btn btn-lg btn-default btn-block" type="reset">重置</button>
+			<button class="btn btn-lg btn-primary btn-block" type="submit">连接</button>
+		</form>
+	</div>
+
+	<!-- 页面加载 -->
+	<div id="loading" style="display: none">
+		<div class="loading-inner">
+			<svg class="loading-icon" viewBox="0 0 50 50">
+				<circle class="path" cx="25" cy="25" r="24" fill="none"></circle>
+			</svg>
+			<p class="loading-text">连接中...</p>
+		</div>
+	</div>
+
+	<!-- 消息提示 -->
+	<div id="message">
+		<div class="text"></div>
+		<div class="icon" onclick="hideMassage()">×</div>
+	</div>
+
+	<!-- 远程桌面 -->
+	<canvas id="myCanvas" style="display: none">
+</body>
+
+</html>

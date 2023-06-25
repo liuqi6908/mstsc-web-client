@@ -1,0 +1,24 @@
+{
+  "name": "mstsc-demo",
+  "author": "Liuqi",
+  "version": "1.0.0",
+  "engines": {
+    "node": ">= 0.10.x"
+  },
+  "description": "A Remote Desktop Protocol Client Demo written in javascript",
+  "license": "AGPL v3.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/liuqi6908/mstsc-demo"
+  },
+  "main": "server.js",
+  "dependencies": {
+    "express": "4.x.x",
+    "node-rdpjs-2": "^0.3.5",
+    "socket.io": "1.3.x"
+  },
+  "scripts": {
+    "start": "node server.js"
+  },
+  "icon-path": "client/img/logo.ico"
+}
