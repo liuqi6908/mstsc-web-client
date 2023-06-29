@@ -18,7 +18,7 @@
 	<!-- Custom styles for this template -->
 	<link href="./css/signin.css" rel="stylesheet">
 
-	<script type="text/javascript" src="./socket.io/socket.io.js"></script>
+	<script type="text/javascript" src="./js/socket.io.js"></script>
 	<script type="text/javascript" src="./js/mstsc.js"></script>
 	<script type="text/javascript" src="./js/keyboard.js"></script>
 	<script type="text/javascript" src="./js/rle.js"></script>
@@ -165,6 +165,7 @@
 		<form class="form-signin"
 			onSubmit="connect(this.elements['inputIpAddress'].value, this.elements['inputDomain'].value, this.elements['inputUsername'].value, this.elements['inputPassword'].value, this.elements['inputEnablePerf'].checked, this.elements['inputChecked'].checked);return false;">
 			<img class='logo' src="./img/mstsc.js.svg"></img>
+			<h1>企研 - 云桌面连接工具</h1>
 			<label for="inputIpAddress" class="sr-only">计算机</label>
 			<input type="text" id="inputIpAddress" class="form-control" placeholder="计算机" required autofocus>
 			<label for="inputDomain" class="sr-only">域</label>

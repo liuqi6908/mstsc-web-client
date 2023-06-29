@@ -25,6 +25,11 @@ body::-webkit-scrollbar-track {
   padding: 15px;
   margin: 0 auto;
 }
+.form-signin h1 {
+  font-size: 25px;
+  text-align: center;
+  margin-bottom: 20px;
+}
 .form-signin .form-signin-heading,
 .form-signin .checkbox {
   margin-bottom: 10px;
