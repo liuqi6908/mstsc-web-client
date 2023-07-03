@@ -5307,7 +5307,6 @@ function ws(uri, protocols, opts) {
   if (protocols) {
     instance = new WebSocket(uri, protocols);
   } else {
-    console.log(111)
     instance = new WebSocket(uri);
   }
   return instance;

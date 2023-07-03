@@ -80,6 +80,11 @@ module.exports = function (server) {
 
         rdpClient.sendKeyEventUnicode(code, isPressed);
       })
+      .on("logout", function () {
+        if (!rdpClient) return;
+
+        rdpClient.close();
+      })
       .on("disconnect", function () {
         if (!rdpClient) return;
 

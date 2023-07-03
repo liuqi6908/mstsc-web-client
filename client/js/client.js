@@ -45,6 +45,8 @@
     this.render = new Mstsc.Canvas.create(this.canvas);
     this.socket = null;
     this.activeSession = false;
+    this.rdp = null;
+    this.info = {};
     this.install();
   }
 
@@ -173,7 +175,6 @@
      * @param domain {string} microsoft domain
      * @param username {string} session username
      * @param password {string} session password
-     * @param next {function} asynchrone end callback
      */
     connect: function (
       ip,
@@ -194,11 +195,17 @@
       this.socket = io(window.location.protocol + "//" + window.location.host, {
         path: path,
       })
-        .on("rdp-connect", function () {
+        .on("rdp-connect", function (rdp) {
           // this event can be occured twice (RDP protocol stack artefact)
           success();
           console.log("[mstsc.js] connected");
+          self.info = {
+            ip: ip.indexOf(":") > -1 ? ip.split(":")[0] : ip,
+            port: ip.indexOf(":") > -1 ? parseInt(ip.split(":")[1]) : 3389,
+            screen: self.canvas.width + " x " + self.canvas.height,
+          };
           self.activeSession = true;
+          self.rdp = rdp;
         })
         .on("rdp-bitmap", function (bitmap) {
           console.log("[mstsc.js] bitmap update bpp : " + bitmap.bitsPerPixel);
@@ -208,6 +215,9 @@
           error(null);
           console.log("[mstsc.js] close");
           self.activeSession = false;
+          self.socket = null;
+          self.rdp = null;
+          self.info = {};
         })
         .on("rdp-error", function (err) {
           error(err);
@@ -215,6 +225,9 @@
             "[mstsc.js] error : " + err.code + "(" + err.message + ")"
           );
           self.activeSession = false;
+          self.socket = null;
+          self.rdp = null;
+          self.info = {};
         });
 
       // emit infos event
@@ -231,6 +244,12 @@
         enablePerf: enablePerf,
         locale: Mstsc.locale(),
       });
+    },
+    /**
+     * logout
+     */
+    logout: function () {
+      if (this.socket) this.socket.emit("logout");
     },
   };
 

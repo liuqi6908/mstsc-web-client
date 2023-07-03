@@ -28,10 +28,13 @@
 	<script language="javascript">
 		var client = null;
 		var timeout = null;
+		var menu, menuTimeout, isVisible;
+		var flag = false;
 
 		/** 加载客户端 */
 		function load(canvas) {
 			Mstsc.$("inputEnablePerf").checked = true;
+			Mstsc.$("inputAutoLogin").checked = true;
 			client = Mstsc.client.create(Mstsc.$(canvas));
 			if (sessionStorage.getItem("connect"))
 				resetConnect();
@@ -40,9 +43,9 @@
 		}
 
 		/** 连接远程桌面 */
-		function connect(ip, domain, username, password, enablePerf, checked) {
+		function connect(ip, domain, username, password, enablePerf, autoLogin, checked) {
 			// 记住凭据
-			if (checked) saveForm({ ip, domain, username, password, enablePerf }, "login");
+			if (checked) saveForm({ ip, domain, username, password, enablePerf, autoLogin }, "login");
 			else localStorage.removeItem("login");
 
 			// 页面加载
@@ -62,7 +65,9 @@
 					canvas.style.display = 'block';
 					showMessage("连接成功！", "success");
 					// 将连接的信息存储到 sessionStorage
-					saveForm({ ip, domain, username, password, enablePerf }, "connect");
+					if (autoLogin)
+						saveForm({ ip, domain, username, password, enablePerf }, "connect");
+					else sessionStorage.removeItem("connect");
 				},
 				/** 连接失败的回调 */
 				function (err) {
@@ -101,7 +106,7 @@
 				if (data) {
 					const form = JSON.parse(data);
 					if (form.ip)
-						connect(form.ip, form.domain || "", form.username || "", (form.password && atob(form.password)) || "", form.enablePerf, true);
+						connect(form.ip, form.domain || "", form.username || "", (form.password && atob(form.password)) || "", form.enablePerf, form.autoLogin, true);
 					else throw new Error();
 				} else throw new Error();
 			} catch (e) {
@@ -121,6 +126,7 @@
 					Mstsc.$("inputUsername").value = form.username || "";
 					Mstsc.$("inputPassword").value = (form.password && atob(form.password)) || "";
 					Mstsc.$("inputEnablePerf").checked = form.enablePerf === false ? false : true;
+					Mstsc.$("inputAutoLogin").checked = form.autoLogin === false ? false : true;
 					Mstsc.$("inputChecked").checked = true;
 				}
 			} catch (e) { }
@@ -138,6 +144,7 @@
 
 		/** 显示提示信息 */
 		function showMessage(message, type) {
+			if (flag) return;
 			if (timeout) clearTimeout(timeout);
 			const dom = Mstsc.$("message");
 			dom.className = type;
@@ -156,14 +163,89 @@
 			const dom = Mstsc.$("message");
 			dom.style.top = "-50PX";
 		}
+
+		/** 监听鼠标移动 */
+		window.addEventListener("mousemove", function (e) {
+			if (!client || !client.activeSession) return;
+			if (!menu) menu = Mstsc.$("menu");
+
+			// 鼠标移至菜单区域
+			if (e.clientX >= (window.innerWidth / 2 - 100)
+				&& e.clientX <= (window.innerWidth / 2 + 100)
+				&& e.clientY >= 0 && e.clientY <= 10) {
+				if (menuTimeout) {
+					clearTimeout(menuTimeout);
+					menuTimeout = null;
+				}
+				if (!isVisible) {
+					menuTimeout = setTimeout(showMenu, 500);
+				}
+			}
+			// 鼠标移出菜单区域
+			else if (e.clientX < (window.innerWidth / 2 - 200)
+				|| e.clientX > (window.innerWidth / 2 + 200)
+				|| e.clientY < 0 || e.clientY > 30) {
+				if (isVisible && !menuTimeout) {
+					menuTimeout = setTimeout(hideMenu, 3000);
+				}
+			} else {
+				if (menuTimeout) {
+					clearTimeout(menuTimeout);
+					menuTimeout = null;
+				}
+			}
+		})
+
+		/** 显示菜单 */
+		function showMenu() {
+			menu.classList.remove("hide");
+			menu.style.animation = 'fadeIn 0.3s ease-in-out forwards';
+			isVisible = true;
+			menu.querySelector(".title").innerText = client.info.ip;
+		}
+
+		/** 隐藏菜单 */
+		function hideMenu() {
+			menu.style.animation = 'fadeOut 0.6s ease-in-out forwards';
+			setTimeout(() => {
+				menu.classList.add("hide");
+				isVisible = false;
+				menu.style.animation = '';
+			}, 600);
+		}
+
+		/** 显示连接的详细信息 */
+		function showInfo() {
+			hideMenu();
+			var info = "";
+			info += `时间戳(UTC)：${new Date().toUTCString()}\n`;
+			info += `活动ID：${client.socket.id}\n`;
+			info += `远程会话类型：远程桌面\n`;
+			info += `远程计算机：${client.info.ip}\n`;
+			info += `端口：${client.info.port}\n`;
+			info += `屏幕：${client.info.screen}`;
+			alert(info);
+		}
+
+		/** 退出登录 */
+		function logout() {
+			hideMenu();
+			flag = true;
+			setTimeout(() => {
+				flag = false;
+			}, 1000);
+			if (client) client.logout();
+		}
 	</script>
 </head>
 
 <body onload='load("myCanvas")'>
 	<!-- 登录页 -->
 	<div id="main" class="container">
-		<form class="form-signin"
-			onSubmit="connect(this.elements['inputIpAddress'].value, this.elements['inputDomain'].value, this.elements['inputUsername'].value, this.elements['inputPassword'].value, this.elements['inputEnablePerf'].checked, this.elements['inputChecked'].checked);return false;">
+		<form class="form-signin" onSubmit="connect(this.elements['inputIpAddress'].value, this.elements['inputDomain'].value, 
+			this.elements['inputUsername'].value, this.elements['inputPassword'].value, 
+			this.elements['inputEnablePerf'].checked, this.elements['inputAutoLogin'].checked, 
+			this.elements['inputChecked'].checked);return false;">
 			<img class='logo' src="./img/mstsc.js.svg"></img>
 			<h1>企研 - 云桌面连接工具</h1>
 			<label for="inputIpAddress" class="sr-only">计算机</label>
@@ -176,6 +258,9 @@
 			<input type="password" id="inputPassword" class="form-control" placeholder="密码">
 			<input type="checkbox" id="inputEnablePerf">
 			<label for="inputEnablePerf">高性能模式（推荐）</label>
+			<br />
+			<input type="checkbox" id="inputAutoLogin">
+			<label for="inputAutoLogin">页面刷新自动重连</label>
 			<br />
 			<input type="checkbox" id="inputChecked">
 			<label for="inputChecked">记住我的凭据</label>
@@ -199,6 +284,13 @@
 	<div id="message">
 		<div class="text"></div>
 		<div class="icon" onclick="hideMassage()">×</div>
+	</div>
+
+	<!-- 悬浮菜单 -->
+	<div id="menu" class="hide">
+		<i class="info" title="详细信息" onclick="showInfo()">i</i>
+		<div class="title"></div>
+		<i class="logout" title="退出登录" onclick="logout()">×</i>
 	</div>
 
 	<!-- 远程桌面 -->
