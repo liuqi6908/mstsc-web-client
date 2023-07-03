@@ -24,8 +24,8 @@
 ## 下载运行
 
 ```plaintext
-git clone https://github.com/liuqi6908/mstsc-demo.git
-cd mstsc-demo
+git clone https://github.com/liuqi6908/mstsc-web-client.git
+cd mstsc-web-client
 npm install
 npm start 或 node server.js
 ```
